@@ -887,6 +887,12 @@ describe("array constraint smoke tests", () => {
 		assert.deepEqual(Schemas.BoundedArraySchema.parse({ values: ["one"] }), {
 			values: ["one"],
 		});
+		for (const labels of [["a"], ["a", "b", "c"]]) {
+			assert.deepEqual(
+				Schemas.BoundedArraySchema.parse({ values: ["one"], labels }),
+				{ values: ["one"], labels },
+			);
+		}
 		assert.throws(() =>
 			Schemas.BoundedArraySchema.parse({ values: ["one"], labels: [] }),
 		);
