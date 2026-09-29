@@ -904,6 +904,16 @@ describe("emitter helpers", () => {
 		);
 	});
 
+	it("appends minItems before maxItems to array schemas", () => {
+		assert.equal(
+			__test.applyConstraints("z.array(z.string())", {
+				minItems: 1,
+				maxItems: 5,
+			}),
+			"z.array(z.string()).min(1).max(5)",
+		);
+	});
+
 	it("does not apply length constraints to a numeric schema", () => {
 		assert.equal(
 			__test.applyConstraints("z.number()", { minLength: 3, pattern: "x" }),
@@ -956,6 +966,7 @@ describe("emitter helpers", () => {
 			{
 				minLength: 25,
 				maxLength: 10,
+				minItems: undefined,
 				maxItems: undefined,
 				pattern: undefined,
 				format: "uuid",

@@ -337,6 +337,7 @@ option turns the whole output file off.
 ### Constraints
 
 - `@minLength` / `@maxLength` → `.min()` / `.max()`
+- `@minItems` → array `.min()`
 - `@maxItems` → array `.max()`
 - `@pattern` → `.regex()`
 - `@format` → `.uuid()`, `.url()` (also `uri`), `.email()`; any other format is ignored

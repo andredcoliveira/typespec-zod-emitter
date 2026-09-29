@@ -500,6 +500,13 @@ namespace Aviary {
 }
 
 model BoundedArray {
+  @minItems(1)
   @maxItems(2)
   values: string[];
+}
+
+namespace Widgets {
+  @route("/bounded")
+  @post
+  op createBounded(@body payload: BoundedArray): BoundedArray;
 }

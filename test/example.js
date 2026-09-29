@@ -581,7 +581,7 @@ describe("request validation middleware smoke tests", () => {
 		const update = findOperation("PATCH", `${BASE_PATH}/widgets/widget-1`);
 		const list = findOperation("get", `${BASE_PATH}/widgets?status=Active`);
 
-		assert.equal(operations.length, 15);
+		assert.equal(operations.length, 16);
 		assert.equal(create.operationId, "Widgets_create");
 		assert.equal(update.operationId, "Widgets_update");
 		assert.equal(list.operationId, "Widgets_list");
@@ -867,5 +867,32 @@ describe("array constraint smoke tests", () => {
 		assert.throws(() =>
 			Schemas.BoundedArraySchema.parse({ values: ["one", "two", "three"] }),
 		);
+	});
+
+	it("rejects arrays with fewer than minItems", () => {
+		assert.throws(() => Schemas.BoundedArraySchema.parse({ values: [] }));
+	});
+
+	it("rejects a request body array outside its item bounds", async () => {
+		const valid = request("POST", "/widgets/bounded", { values: ["one"] });
+		const empty = request("POST", "/widgets/bounded", { values: [] });
+		const tooMany = request("POST", "/widgets/bounded", {
+			values: ["one", "two", "three"],
+		});
+
+		assert.equal(await validationMiddleware.pre(valid), undefined);
+		for (const context of [empty, tooMany]) {
+			await assert.rejects(
+				() => validationMiddleware.pre(context),
+				(error) => {
+					assert.equal(error.operationId, "Widgets_createBounded");
+					assert.equal(
+						error.issues.some((issue) => issue.path.join(".") === "values"),
+						true,
+					);
+					return true;
+				},
+			);
+		}
 	});
 });

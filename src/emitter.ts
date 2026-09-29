@@ -7,6 +7,7 @@ import {
 	getMaxItems,
 	getMaxLength,
 	getMaxValue,
+	getMinItems,
 	getMinLength,
 	getMinValue,
 	getPattern,
@@ -625,6 +626,7 @@ const FORMAT_CHECK_MAP = new Map<string, string>([
 interface Constraints {
 	minLength?: number;
 	maxLength?: number;
+	minItems?: number;
 	maxItems?: number;
 	pattern?: string;
 	format?: string;
@@ -636,6 +638,7 @@ function readConstraints(program: Program, target: Type): Constraints {
 	return {
 		minLength: getMinLength(program, target),
 		maxLength: getMaxLength(program, target),
+		minItems: getMinItems(program, target),
 		maxItems: getMaxItems(program, target),
 		pattern: getPattern(program, target),
 		format: getFormat(program, target),
@@ -648,6 +651,7 @@ function mergeConstraints(base: Constraints, refinement: Constraints) {
 	return {
 		minLength: refinement.minLength ?? base.minLength,
 		maxLength: refinement.maxLength ?? base.maxLength,
+		minItems: refinement.minItems ?? base.minItems,
 		maxItems: refinement.maxItems ?? base.maxItems,
 		pattern: refinement.pattern ?? base.pattern,
 		format: refinement.format ?? base.format,
@@ -724,6 +728,9 @@ function applyConstraints(schema: string, constraints: Constraints): string {
 	}
 
 	if (schema.startsWith("z.array(")) {
+		if (constraints.minItems !== undefined) {
+			checks.push(`.min(${constraints.minItems})`);
+		}
 		if (constraints.maxItems !== undefined) {
 			checks.push(`.max(${constraints.maxItems})`);
 		}
