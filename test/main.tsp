@@ -498,3 +498,8 @@ namespace Aviary {
     pet: Pet;
   }
 }
+
+model BoundedArray {
+  @maxItems(2)
+  values: string[];
+}

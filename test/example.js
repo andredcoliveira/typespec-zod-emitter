@@ -857,3 +857,15 @@ describe("route specificity smoke tests", () => {
 		);
 	});
 });
+
+describe("array constraint smoke tests", () => {
+	it("rejects arrays with more than maxItems", () => {
+		assert.deepEqual(
+			Schemas.BoundedArraySchema.parse({ values: ["one", "two"] }),
+			{ values: ["one", "two"] },
+		);
+		assert.throws(() =>
+			Schemas.BoundedArraySchema.parse({ values: ["one", "two", "three"] }),
+		);
+	});
+});

@@ -4,6 +4,7 @@ import {
 	emitFile,
 	getDiscriminatedUnion,
 	getFormat,
+	getMaxItems,
 	getMaxLength,
 	getMaxValue,
 	getMinLength,
@@ -533,7 +534,9 @@ function generatePropertySchema(
 	let schema =
 		prop.type.kind === "Scalar"
 			? generateScalarSchema(prop.type, program, prop)
-			: generateTypeSchema(prop.type, schemaNames, program);
+			: isArrayModel(prop.type)
+				? generateArraySchema(prop.type, schemaNames, program, prop)
+				: generateTypeSchema(prop.type, schemaNames, program);
 
 	if (prop.optional) {
 		schema += ".optional()";
@@ -620,6 +623,7 @@ const FORMAT_CHECK_MAP = new Map<string, string>([
 interface Constraints {
 	minLength?: number;
 	maxLength?: number;
+	maxItems?: number;
 	pattern?: string;
 	format?: string;
 	minValue?: number;
@@ -630,6 +634,7 @@ function readConstraints(program: Program, target: Type): Constraints {
 	return {
 		minLength: getMinLength(program, target),
 		maxLength: getMaxLength(program, target),
+		maxItems: getMaxItems(program, target),
 		pattern: getPattern(program, target),
 		format: getFormat(program, target),
 		minValue: getMinValue(program, target),
@@ -641,6 +646,7 @@ function mergeConstraints(base: Constraints, refinement: Constraints) {
 	return {
 		minLength: refinement.minLength ?? base.minLength,
 		maxLength: refinement.maxLength ?? base.maxLength,
+		maxItems: refinement.maxItems ?? base.maxItems,
 		pattern: refinement.pattern ?? base.pattern,
 		format: refinement.format ?? base.format,
 		minValue: refinement.minValue ?? base.minValue,
@@ -650,18 +656,22 @@ function mergeConstraints(base: Constraints, refinement: Constraints) {
 
 function collectConstraints(
 	program: Program,
-	scalar: Scalar,
+	type: Type,
 	property?: ModelProperty,
 ): Constraints {
-	// Root scalar first, so each refinement overrides the one it extends and
-	// the property (if any) has the final say.
+	// Root scalar first, so each refinement overrides the one it extends. Other
+	// types contribute their own constraints, and the property has the final say.
 	const sources: Type[] = [];
-	for (
-		let current: Scalar | undefined = scalar;
-		current;
-		current = current.baseScalar
-	) {
-		sources.unshift(current);
+	if (type.kind === "Scalar") {
+		for (
+			let current: Scalar | undefined = type;
+			current;
+			current = current.baseScalar
+		) {
+			sources.unshift(current);
+		}
+	} else {
+		sources.push(type);
 	}
 	if (property) {
 		sources.push(property);
@@ -715,6 +725,12 @@ function applyConstraints(schema: string, constraints: Constraints): string {
 		}
 	}
 
+	if (schema.startsWith("z.array(")) {
+		if (constraints.maxItems !== undefined) {
+			checks.push(`.max(${constraints.maxItems})`);
+		}
+	}
+
 	return schema + checks.join("");
 }
 
@@ -750,8 +766,7 @@ function generateModelTypeSchema(
 	program?: Program,
 ): string {
 	if (model.name === "Array" && model.indexer?.value) {
-		const elementType = model.indexer.value;
-		return `z.array(${generateTypeSchema(elementType, schemaNames, program)})`;
+		return generateArraySchema(model, schemaNames, program);
 	}
 
 	if (model.indexer && model.indexer.key.name === "string") {
@@ -793,6 +808,29 @@ function generateModelTypeSchema(
 	}
 
 	return `${model.name}Schema`;
+}
+
+function isArrayModel(type: Type): type is Model {
+	return (
+		type.kind === "Model" && type.name === "Array" && !!type.indexer?.value
+	);
+}
+
+function generateArraySchema(
+	model: Model,
+	schemaNames?: SchemaNames,
+	program?: Program,
+	property?: ModelProperty,
+): string {
+	const elementType = model.indexer?.value;
+	if (!elementType) {
+		return "z.array(z.unknown())";
+	}
+
+	const schema = `z.array(${generateTypeSchema(elementType, schemaNames, program)})`;
+	return program
+		? applyConstraints(schema, collectConstraints(program, model, property))
+		: schema;
 }
 
 function generateUnionSchema(
