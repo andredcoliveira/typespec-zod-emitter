@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
 	createValidationMiddleware,
@@ -871,6 +872,30 @@ describe("array constraint smoke tests", () => {
 
 	it("rejects arrays with fewer than minItems", () => {
 		assert.throws(() => Schemas.BoundedArraySchema.parse({ values: [] }));
+	});
+
+	it("bounds an optional array before marking it optional", () => {
+		const source = readFileSync(
+			new URL("../build/zod-schemas/schemas.ts", import.meta.url),
+			"utf8",
+		);
+
+		assert.match(
+			source,
+			/labels: z\.array\(z\.string\(\)\)\.min\(1\)\.max\(3\)\.optional\(\)$/m,
+		);
+		assert.deepEqual(Schemas.BoundedArraySchema.parse({ values: ["one"] }), {
+			values: ["one"],
+		});
+		assert.throws(() =>
+			Schemas.BoundedArraySchema.parse({ values: ["one"], labels: [] }),
+		);
+		assert.throws(() =>
+			Schemas.BoundedArraySchema.parse({
+				values: ["one"],
+				labels: ["a", "b", "c", "d"],
+			}),
+		);
 	});
 
 	it("rejects a request body array outside its item bounds", async () => {

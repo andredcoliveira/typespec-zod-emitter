@@ -651,8 +651,6 @@ function mergeConstraints(base: Constraints, refinement: Constraints) {
 	return {
 		minLength: refinement.minLength ?? base.minLength,
 		maxLength: refinement.maxLength ?? base.maxLength,
-		minItems: refinement.minItems ?? base.minItems,
-		maxItems: refinement.maxItems ?? base.maxItems,
 		pattern: refinement.pattern ?? base.pattern,
 		format: refinement.format ?? base.format,
 		minValue: refinement.minValue ?? base.minValue,

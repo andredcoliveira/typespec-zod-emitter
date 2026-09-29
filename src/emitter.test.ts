@@ -966,8 +966,6 @@ describe("emitter helpers", () => {
 			{
 				minLength: 25,
 				maxLength: 10,
-				minItems: undefined,
-				maxItems: undefined,
 				pattern: undefined,
 				format: "uuid",
 				minValue: undefined,

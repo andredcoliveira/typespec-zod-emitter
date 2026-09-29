@@ -503,6 +503,10 @@ model BoundedArray {
   @minItems(1)
   @maxItems(2)
   values: string[];
+
+  @minItems(1)
+  @maxItems(3)
+  labels?: string[];
 }
 
 namespace Widgets {

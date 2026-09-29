@@ -113,7 +113,7 @@ describe("$onEmit", () => {
 
 		assert.match(
 			files.get("schemas.ts") ?? "",
-			/values: z\.array\(z\.string\(\)\)\.max\(5\)/,
+			/values: z\.array\(z\.string\(\)\)\.max\(5\)$/m,
 		);
 	});
 
