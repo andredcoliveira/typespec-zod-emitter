@@ -120,14 +120,6 @@ export async function $onEmit(context: EmitContext<ZodEmitterOptions>) {
 							generateTypeSchema(type, schemaNames, context.program),
 						property: (property) =>
 							generatePropertySchema(property, schemaNames, context.program),
-						array: (type, elementSchema, property) =>
-							generateArraySchema(
-								type,
-								schemaNames,
-								context.program,
-								property,
-								elementSchema,
-							),
 						propertyName: quotePropertyName,
 						properties: getAllProperties,
 					},
@@ -338,9 +330,6 @@ function getModelDependencies(model: Model): Set<DeclaredType> {
 	for (const [_, prop] of getAllProperties(model)) {
 		extractDependencies(prop.type);
 	}
-	if (isArrayModel(model) && model.indexer?.value) {
-		extractDependencies(model.indexer.value);
-	}
 
 	// Remove self-reference
 	dependencies.delete(model);
@@ -521,10 +510,6 @@ function generateModelSchema(
 	schemaNames?: SchemaNames,
 	program?: Program,
 ): string {
-	if (isArrayModel(model)) {
-		return `export const ${schemaName(model, schemaNames)}Schema = ${generateArraySchema(model, schemaNames, program)};`;
-	}
-
 	const properties: string[] = [];
 
 	for (const [propName, prop] of getAllProperties(model)) {
@@ -549,9 +534,11 @@ function generatePropertySchema(
 	let schema =
 		prop.type.kind === "Scalar"
 			? generateScalarSchema(prop.type, program, prop)
-			: prop.type.kind === "Model" && isArrayModel(prop.type)
-				? generateArrayPropertySchema(prop.type, schemaNames, program, prop)
-				: generateTypeSchema(prop.type, schemaNames, program);
+			: generateTypeSchema(prop.type, schemaNames, program);
+
+	if (program && prop.type.kind === "Model" && prop.type.name === "Array") {
+		schema = applyConstraints(schema, readConstraints(program, prop));
+	}
 
 	if (prop.optional) {
 		schema += ".optional()";
@@ -671,22 +658,18 @@ function mergeConstraints(base: Constraints, refinement: Constraints) {
 
 function collectConstraints(
 	program: Program,
-	type: Type,
+	scalar: Scalar,
 	property?: ModelProperty,
 ): Constraints {
-	// Root scalar first, so each refinement overrides the one it extends. Other
-	// types contribute their own constraints, and the property has the final say.
+	// Root scalar first, so each refinement overrides the one it extends and
+	// the property (if any) has the final say.
 	const sources: Type[] = [];
-	if (type.kind === "Scalar") {
-		for (
-			let current: Scalar | undefined = type;
-			current;
-			current = current.baseScalar
-		) {
-			sources.unshift(current);
-		}
-	} else {
-		sources.push(type);
+	for (
+		let current: Scalar | undefined = scalar;
+		current;
+		current = current.baseScalar
+	) {
+		sources.unshift(current);
 	}
 	if (property) {
 		sources.push(property);
@@ -780,11 +763,9 @@ function generateModelTypeSchema(
 	schemaNames?: SchemaNames,
 	program?: Program,
 ): string {
-	if (isArrayModel(model)) {
-		const declaredName = schemaNames?.get(model);
-		return declaredName
-			? `${declaredName}Schema`
-			: generateArraySchema(model, schemaNames, program);
+	if (model.name === "Array" && model.indexer?.value) {
+		const elementType = model.indexer.value;
+		return `z.array(${generateTypeSchema(elementType, schemaNames, program)})`;
 	}
 
 	if (model.indexer && model.indexer.key.name === "string") {
@@ -826,48 +807,6 @@ function generateModelTypeSchema(
 	}
 
 	return `${model.name}Schema`;
-}
-
-function isArrayModel(type: Type): boolean {
-	return (
-		type.kind === "Model" &&
-		type.indexer?.key.name === "integer" &&
-		!!type.indexer.value
-	);
-}
-
-function generateArrayPropertySchema(
-	model: Model,
-	schemaNames: SchemaNames | undefined,
-	program: Program | undefined,
-	property: ModelProperty,
-): string {
-	const declaredName = schemaNames?.get(model);
-	if (declaredName) {
-		const schema = `${declaredName}Schema`;
-		const maxItems = program ? getMaxItems(program, property) : undefined;
-		return maxItems === undefined ? schema : `${schema}.max(${maxItems})`;
-	}
-
-	return generateArraySchema(model, schemaNames, program, property);
-}
-
-function generateArraySchema(
-	model: Model,
-	schemaNames?: SchemaNames,
-	program?: Program,
-	property?: ModelProperty,
-	itemSchema?: string,
-): string {
-	const elementType = model.indexer?.value;
-	if (!elementType) {
-		return "z.array(z.unknown())";
-	}
-
-	const schema = `z.array(${itemSchema ?? generateTypeSchema(elementType, schemaNames, program)})`;
-	return program
-		? applyConstraints(schema, collectConstraints(program, model, property))
-		: schema;
 }
 
 function generateUnionSchema(

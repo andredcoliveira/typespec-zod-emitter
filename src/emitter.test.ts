@@ -147,7 +147,7 @@ describe("emitter helpers", () => {
 		const arrayModel = {
 			kind: "Model",
 			name: "Array",
-			indexer: { key: { name: "integer" }, value: stringScalar },
+			indexer: { value: stringScalar },
 		} as unknown as Model;
 		const recordModel = {
 			kind: "Model",
@@ -611,25 +611,6 @@ describe("emitter helpers", () => {
 
 		const deps = dependencyNames(__test.getModelDependencies(model));
 		assert.ok(deps.has("Item"));
-	});
-
-	it("gets dependencies from a named array model", () => {
-		const item = {
-			kind: "Model",
-			name: "Item",
-			properties: new Map(),
-		} as unknown as Model;
-		const endpoints = {
-			kind: "Model",
-			name: "Endpoints",
-			indexer: { key: { name: "integer" }, value: item },
-			properties: new Map(),
-		} as unknown as Model;
-
-		assert.deepEqual(
-			dependencyNames(__test.getModelDependencies(endpoints)),
-			new Set(["Item"]),
-		);
 	});
 
 	it("returns empty dependencies for model with no deps", () => {

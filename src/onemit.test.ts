@@ -117,51 +117,6 @@ describe("$onEmit", () => {
 		);
 	});
 
-	it("emits maxItems for named array models", async () => {
-		const files = await emit(
-			`@maxItems(2) model Endpoints is string[];
-			model EndpointCollection { values: Endpoints; }`,
-			{ "emit-middleware": false },
-		);
-
-		const schemas = files.get("schemas.ts") ?? "";
-		assert.match(
-			schemas,
-			/export const EndpointsSchema = z\.array\(z\.string\(\)\)\.max\(2\);/,
-		);
-		assert.match(schemas, /values: EndpointsSchema/);
-	});
-
-	it("keeps maxItems on arrays transformed for request visibility", async () => {
-		const files = await emit(`
-			import "@typespec/http";
-			using Http;
-
-			model AssociationLink {
-				name: string;
-				@visibility(Lifecycle.Read)
-				backendId: string;
-			}
-
-			model AssociationBatch {
-				@maxItems(2)
-				links: AssociationLink[];
-			}
-
-			@service
-			@route("/association-batches")
-			namespace AssociationBatches {
-				@post
-				op create(@body batch: AssociationBatch): AssociationBatch;
-			}
-		`);
-
-		assert.match(
-			files.get("middleware.ts") ?? "",
-			/links: z\.array\(z\.object\(\{ name: z\.string\(\) \}\)\)\.max\(2\)/,
-		);
-	});
-
 	it("skips the middleware when emit-middleware is false", async () => {
 		const files = await emit(petStore, {
 			...packageOptions,
