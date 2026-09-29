@@ -581,7 +581,7 @@ describe("request validation middleware smoke tests", () => {
 		const update = findOperation("PATCH", `${BASE_PATH}/widgets/widget-1`);
 		const list = findOperation("get", `${BASE_PATH}/widgets?status=Active`);
 
-		assert.equal(operations.length, 15);
+		assert.equal(operations.length, 16);
 		assert.equal(create.operationId, "Widgets_create");
 		assert.equal(update.operationId, "Widgets_update");
 		assert.equal(list.operationId, "Widgets_list");
@@ -866,6 +866,40 @@ describe("array constraint smoke tests", () => {
 		);
 		assert.throws(() =>
 			Schemas.BoundedArraySchema.parse({ values: ["one", "two", "three"] }),
+		);
+	});
+
+	it("emits named array models as bounded arrays", () => {
+		assert.deepEqual(Schemas.EndpointsSchema.parse(["one", "two"]), [
+			"one",
+			"two",
+		]);
+		assert.throws(() => Schemas.EndpointsSchema.parse(["one", "two", "three"]));
+	});
+
+	it("keeps maxItems on visibility-transformed request arrays", async () => {
+		const valid = request("POST", "/association-batches", {
+			links: [{ name: "one", backendId: "server-only" }],
+		});
+		const tooMany = request("POST", "/association-batches", {
+			links: [
+				{ name: "one", backendId: "server-only" },
+				{ name: "two", backendId: "server-only" },
+				{ name: "three", backendId: "server-only" },
+			],
+		});
+
+		assert.equal(await validationMiddleware.pre(valid), undefined);
+		await assert.rejects(
+			() => validationMiddleware.pre(tooMany),
+			(error) => {
+				assert.equal(error.operationId, "AssociationBatches_create");
+				assert.equal(
+					error.issues.some((issue) => issue.path.join(".") === "links"),
+					true,
+				);
+				return true;
+			},
 		);
 	});
 });

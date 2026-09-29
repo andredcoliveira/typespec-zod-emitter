@@ -503,3 +503,25 @@ model BoundedArray {
   @maxItems(2)
   values: string[];
 }
+
+@maxItems(2)
+model Endpoints is string[];
+
+model AssociationLink {
+  name: string;
+
+  @visibility(Lifecycle.Read)
+  backendId: string;
+}
+
+model AssociationBatch {
+  @maxItems(2)
+  links: AssociationLink[];
+}
+
+@service
+@route("/association-batches")
+namespace AssociationBatches {
+  @post
+  op create(@body batch: AssociationBatch): AssociationBatch;
+}

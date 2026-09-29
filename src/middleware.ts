@@ -12,6 +12,7 @@ import {
 export interface ZodCodegen {
 	type(type: Type): string;
 	property(property: ModelProperty): string;
+	array(type: Model, elementSchema: string, property?: ModelProperty): string;
 	propertyName(name: string): string;
 	properties(model: Model): Map<string, ModelProperty>;
 }
@@ -223,6 +224,7 @@ function payloadSchema(
 	visibility: Visibility,
 	context: PayloadContext,
 	inExplicitBody = false,
+	property?: ModelProperty,
 ): string {
 	if (isPayloadIdentical(type, visibility, context, inExplicitBody)) {
 		return context.codegen.type(type);
@@ -241,8 +243,13 @@ function payloadSchema(
 		return context.codegen.type(type);
 	}
 
-	if (type.name === "Array" && type.indexer) {
-		return `z.array(${payloadSchema(type.indexer.value, visibility | Visibility.Item, context)})`;
+	if (type.indexer && type.indexer.key.name === "integer") {
+		const elementSchema = payloadSchema(
+			type.indexer.value,
+			visibility | Visibility.Item,
+			context,
+		);
+		return context.codegen.array(type, elementSchema, property);
 	}
 
 	if (type.indexer && type.indexer.key.name === "string") {
@@ -278,7 +285,13 @@ function payloadPropertySchema(
 		return optional && !property.optional ? `${declared}.optional()` : declared;
 	}
 
-	const schema = payloadSchema(property.type, visibility, context);
+	const schema = payloadSchema(
+		property.type,
+		visibility,
+		context,
+		false,
+		property,
+	);
 	return optional ? `${schema}.optional()` : schema;
 }
 
